@@ -251,3 +251,69 @@ footer {
 .back-link:hover {
     text-decoration: underline;
 }
+
+/* t検定ページ用の追加スタイル */
+.results-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.numeric-results {
+    min-height: 400px;
+}
+
+.chart-container {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.chart-container h3 {
+    margin-bottom: 15px;
+    text-align: center;
+    color: #2c3e50;
+}
+
+#tDistributionChart {
+    max-height: 400px;
+    width: 100% !important;
+    height: auto !important;
+}
+
+.chart-explanation {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.chart-explanation ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.chart-explanation li {
+    margin-bottom: 5px;
+}
+
+/* レスポンシブデザイン（スマホ対応） */
+@media (max-width: 768px) {
+    .results-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .chart-container {
+        order: 2;
+    }
+    
+    .numeric-results {
+        order: 1;
+        min-height: auto;
+    }
+}

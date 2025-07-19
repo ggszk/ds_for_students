@@ -6,6 +6,7 @@
     <title>平均の差の検定（t検定） - 高校生のためのデータサイエンス</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -67,7 +68,16 @@
 
             <section id="results" class="results" style="display: none;">
                 <h2>検定結果</h2>
-                <div id="resultContent" class="result-box"></div>
+                <div class="results-container">
+                    <div class="numeric-results">
+                        <div id="resultContent" class="result-box"></div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>t分布と検定統計量</h3>
+                        <canvas id="tDistributionChart"></canvas>
+                        <div id="chartExplanation" class="chart-explanation"></div>
+                    </div>
+                </div>
             </section>
 
             <section class="explanation">
@@ -87,6 +97,9 @@
     </div>
 
     <script>
+        // アノテーションプラグインを使わないシンプルな実装
+        let tDistChart = null; // グラフのインスタンスを保存
+        
         document.getElementById('tTestForm').addEventListener('submit', function(e) {
             e.preventDefault();
             performTTest();
@@ -151,8 +164,7 @@
                 // 結果の判定
                 const isSignificant = pValue < significanceLevel;
 
-                // 結果の表示
-                displayResults({
+                const results = {
                     group1: { mean: mean1, sd: sd1, n: n1 },
                     group2: { mean: mean2, sd: sd2, n: n2 },
                     tStat: tStat,
@@ -162,7 +174,13 @@
                     testType: testType,
                     isSignificant: isSignificant,
                     meanDifference: mean1 - mean2
-                });
+                };
+
+                // 結果の表示
+                displayResults(results);
+
+                // グラフの描画
+                drawTDistributionChart(results.tStat, results.df, results.significanceLevel, results.testType, results.pValue);
 
             } catch (error) {
                 displayError(error.message);
@@ -228,6 +246,225 @@
             
             resultSection.style.display = 'block';
             resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // t分布の確率密度関数（近似）
+        function tDistributionPDF(x, df) {
+            const gamma1 = Math.exp(logGamma((df + 1) / 2));
+            const gamma2 = Math.exp(logGamma(df / 2));
+            const coefficient = gamma1 / (Math.sqrt(df * Math.PI) * gamma2);
+            return coefficient * Math.pow(1 + (x * x) / df, -(df + 1) / 2);
+        }
+
+        // ガンマ関数の対数（近似）
+        function logGamma(z) {
+            if (z < 0.5) {
+                return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1 - z);
+            }
+            z -= 1;
+            let x = 0.99999999999980993;
+            const coefficients = [
+                676.5203681218851, -1259.1392167224028, 771.32342877765313,
+                -176.61502916214059, 12.507343278686905, -0.13857109526572012,
+                9.9843695780195716e-6, 1.5056327351493116e-7
+            ];
+            for (let i = 0; i < coefficients.length; i++) {
+                x += coefficients[i] / (z + i + 1);
+            }
+            const t = z + coefficients.length - 0.5;
+            return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+        }
+
+        // t分布のグラフを描画（シンプル版）
+        function drawTDistributionChart(tStat, df, significanceLevel, testType, pValue) {
+            const ctx = document.getElementById('tDistributionChart').getContext('2d');
+            
+            // 既存のグラフを破棄
+            if (tDistChart) {
+                tDistChart.destroy();
+            }
+
+            // データ点の生成
+            const tDistPoints = [];
+            const xMin = -4;
+            const xMax = 4;
+            const step = 0.05;
+            
+            for (let x = xMin; x <= xMax; x += step) {
+                tDistPoints.push({
+                    x: x,
+                    y: tDistributionPDF(x, df)
+                });
+            }
+
+            // 検定統計量の位置にマーカーを追加
+            const testStatPoint = {
+                x: tStat,
+                y: tDistributionPDF(tStat, df)
+            };
+
+            // 臨界値の計算（近似）
+            let criticalValues = [];
+            if (testType === 'two-tailed') {
+                // 両側検定の臨界値（簡易近似）
+                const criticalValue = significanceLevel === 0.05 ? 1.96 : 
+                                    significanceLevel === 0.01 ? 2.58 : 1.645;
+                criticalValues = [-criticalValue, criticalValue];
+            } else if (testType === 'greater') {
+                const criticalValue = significanceLevel === 0.05 ? 1.645 : 
+                                    significanceLevel === 0.01 ? 2.33 : 1.28;
+                criticalValues = [criticalValue];
+            } else {
+                const criticalValue = significanceLevel === 0.05 ? -1.645 : 
+                                    significanceLevel === 0.01 ? -2.33 : -1.28;
+                criticalValues = [criticalValue];
+            }
+
+            // 臨界値の点を作成
+            const criticalPoints = criticalValues.map(val => ({
+                x: val,
+                y: tDistributionPDF(val, df)
+            }));
+
+            const datasets = [
+                {
+                    label: `t分布 (自由度: ${df.toFixed(1)})`,
+                    data: tDistPoints,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    order: 3
+                },
+                {
+                    label: `検定統計量 (t = ${tStat.toFixed(3)})`,
+                    data: [testStatPoint],
+                    borderColor: 'red',
+                    backgroundColor: 'red',
+                    pointRadius: 8,
+                    pointStyle: 'line',
+                    showLine: false,
+                    order: 1
+                }
+            ];
+
+            // 臨界値の点を追加
+            if (criticalPoints.length > 0) {
+                datasets.push({
+                    label: '臨界値',
+                    data: criticalPoints,
+                    borderColor: 'orange',
+                    backgroundColor: 'orange',
+                    pointRadius: 6,
+                    pointStyle: 'triangle',
+                    showLine: false,
+                    order: 2
+                });
+            }
+
+            tDistChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 't値',
+                                font: {
+                                    size: 14
+                                }
+                            },
+                            min: xMin,
+                            max: xMax,
+                            grid: {
+                                display: true
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '確率密度',
+                                font: {
+                                    size: 14
+                                }
+                            },
+                            min: 0,
+                            grid: {
+                                display: true
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return `t値: ${context[0].parsed.x.toFixed(3)}`;
+                                },
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) {
+                                        return `確率密度: ${context.parsed.y.toFixed(4)}`;
+                                    } else if (context.datasetIndex === 1) {
+                                        return `検定統計量: ${context.parsed.x.toFixed(3)}`;
+                                    } else {
+                                        return `臨界値: ${context.parsed.x.toFixed(3)}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // グラフの説明を更新
+            updateChartExplanation(tStat, df, testType, pValue, significanceLevel, criticalValues);
+        }
+
+        // グラフの説明を更新
+        function updateChartExplanation(tStat, df, testType, pValue, significanceLevel, criticalValues) {
+            const explanation = document.getElementById('chartExplanation');
+            
+            let testTypeText;
+            switch(testType) {
+                case 'two-tailed':
+                    testTypeText = '両側検定：両端の棄却域';
+                    break;
+                case 'greater':
+                    testTypeText = '片側検定：右側の棄却域';
+                    break;
+                case 'less':
+                    testTypeText = '片側検定：左側の棄却域';
+                    break;
+            }
+
+            const criticalText = criticalValues.length > 1 ? 
+                `臨界値: ±${Math.abs(criticalValues[0]).toFixed(3)}` :
+                `臨界値: ${criticalValues[0].toFixed(3)}`;
+
+            explanation.innerHTML = `
+                <ul>
+                    <li><strong>青い曲線：</strong> t分布（自由度 ${df.toFixed(1)}）</li>
+                    <li><strong>赤い点：</strong> 検定統計量 t = ${tStat.toFixed(3)}</li>
+                    <li><strong>オレンジの三角：</strong> ${criticalText}（有意水準 ${significanceLevel}）</li>
+                    <li><strong>検定の種類：</strong> ${testTypeText}</li>
+                    <li><strong>p値 = ${pValue.toFixed(6)}：</strong> 統計量より極端な値が出る確率</li>
+                    <li><strong>判定：</strong> ${Math.abs(tStat) > Math.abs(criticalValues[0]) ? '棄却域内（有意差あり）' : '受容域内（有意差なし）'}</li>
+                </ul>
+            `;
         }
 
         // サンプルデータの設定（開発用）
