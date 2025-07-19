@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平均の差の検定（t検定） - 高校生のためのデータサイエンス</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← トップページに戻る</a>
+        
+        <header>
+            <h1>📈 平均の差の検定（t検定）</h1>
+            <p>2つのグループの平均値に有意な差があるかを検定します</p>
+        </header>
+
+        <main>
+            <section class="instructions">
+                <h2>使用方法</h2>
+                <ol>
+                    <li>CODAPで2つのグループのデータを準備します</li>
+                    <li>各グループの数値データをコピーして、下のテキストエリアに貼り付けます</li>
+                    <li>データは改行またはカンマで区切って入力してください</li>
+                    <li>有意水準を選択します（通常は0.05）</li>
+                    <li>「検定を実行」ボタンをクリックします</li>
+                </ol>
+            </section>
+
+            <section class="test-form">
+                <h2>データ入力</h2>
+                <form id="tTestForm">
+                    <div class="form-group">
+                        <label for="group1Data">グループ1のデータ</label>
+                        <textarea id="group1Data" placeholder="例: 12.3&#10;14.5&#10;13.1&#10;15.2&#10;または&#10;12.3, 14.5, 13.1, 15.2" required></textarea>
+                        <small>数値を改行またはカンマで区切って入力してください</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="group2Data">グループ2のデータ</label>
+                        <textarea id="group2Data" placeholder="例: 10.1&#10;11.8&#10;12.3&#10;11.5&#10;または&#10;10.1, 11.8, 12.3, 11.5" required></textarea>
+                        <small>数値を改行またはカンマで区切って入力してください</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="significanceLevel">有意水準</label>
+                        <select id="significanceLevel">
+                            <option value="0.01">0.01 (1%)</option>
+                            <option value="0.05" selected>0.05 (5%)</option>
+                            <option value="0.10">0.10 (10%)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="testType">検定の種類</label>
+                        <select id="testType">
+                            <option value="two-tailed" selected>両側検定（グループ1 ≠ グループ2）</option>
+                            <option value="greater">片側検定（グループ1 > グループ2）</option>
+                            <option value="less">片側検定（グループ1 < グループ2）</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn">検定を実行</button>
+                </form>
+            </section>
+
+            <section id="results" class="results" style="display: none;">
+                <h2>検定結果</h2>
+                <div id="resultContent" class="result-box"></div>
+            </section>
+
+            <section class="explanation">
+                <h2>結果の解釈</h2>
+                <ul>
+                    <li><strong>t統計量：</strong> 2つのグループの平均の差を標準誤差で割った値</li>
+                    <li><strong>自由度：</strong> データの数から制約を引いた値</li>
+                    <li><strong>p値：</strong> 帰無仮説が正しいと仮定した時に、観測された結果以上の極端な結果が得られる確率</li>
+                    <li><strong>判定：</strong> p値が有意水準より小さい場合、統計的に有意な差があると判断</li>
+                </ul>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 高校生のためのデータサイエンス</p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('tTestForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            performTTest();
+        });
+
+        function parseData(dataString) {
+            // 改行またはカンマで区切られたデータを数値配列に変換
+            const data = dataString.trim()
+                .split(/[\n,]+/)
+                .map(x => x.trim())
+                .filter(x => x !== '')
+                .map(x => parseFloat(x))
+                .filter(x => !isNaN(x));
+            
+            return data;
+        }
+
+        function performTTest() {
+            try {
+                // データの取得と解析
+                const group1String = document.getElementById('group1Data').value;
+                const group2String = document.getElementById('group2Data').value;
+                const significanceLevel = parseFloat(document.getElementById('significanceLevel').value);
+                const testType = document.getElementById('testType').value;
+
+                const group1 = parseData(group1String);
+                const group2 = parseData(group2String);
+
+                // データの検証
+                if (group1.length < 2 || group2.length < 2) {
+                    throw new Error('各グループに最低2つのデータが必要です');
+                }
+
+                // 基本統計量の計算
+                const mean1 = ss.mean(group1);
+                const mean2 = ss.mean(group2);
+                const sd1 = ss.standardDeviation(group1);
+                const sd2 = ss.standardDeviation(group2);
+                const n1 = group1.length;
+                const n2 = group2.length;
+
+                // t検定の計算
+                const result = ss.tTestTwoSample(group1, group2, 0);
+                const tStat = result;
+                
+                // 自由度の計算（ウェルチのt検定）
+                const var1 = ss.variance(group1);
+                const var2 = ss.variance(group2);
+                const df = Math.pow(var1/n1 + var2/n2, 2) / 
+                          (Math.pow(var1/n1, 2)/(n1-1) + Math.pow(var2/n2, 2)/(n2-1));
+
+                // p値の計算（近似）
+                let pValue;
+                if (testType === 'two-tailed') {
+                    pValue = 2 * (1 - ss.cumulativeStdNormalProbability(Math.abs(tStat)));
+                } else if (testType === 'greater') {
+                    pValue = 1 - ss.cumulativeStdNormalProbability(tStat);
+                } else { // less
+                    pValue = ss.cumulativeStdNormalProbability(tStat);
+                }
+
+                // 結果の判定
+                const isSignificant = pValue < significanceLevel;
+
+                // 結果の表示
+                displayResults({
+                    group1: { mean: mean1, sd: sd1, n: n1 },
+                    group2: { mean: mean2, sd: sd2, n: n2 },
+                    tStat: tStat,
+                    df: df,
+                    pValue: pValue,
+                    significanceLevel: significanceLevel,
+                    testType: testType,
+                    isSignificant: isSignificant,
+                    meanDifference: mean1 - mean2
+                });
+
+            } catch (error) {
+                displayError(error.message);
+            }
+        }
+
+        function displayResults(results) {
+            const resultSection = document.getElementById('results');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultContent.className = results.isSignificant ? 'result-box success' : 'result-box';
+            
+            let testTypeText;
+            switch(results.testType) {
+                case 'two-tailed':
+                    testTypeText = '両側検定';
+                    break;
+                case 'greater':
+                    testTypeText = '片側検定（グループ1 > グループ2）';
+                    break;
+                case 'less':
+                    testTypeText = '片側検定（グループ1 < グループ2）';
+                    break;
+            }
+
+            resultContent.innerHTML = `
+                <h3>基本統計量</h3>
+                <div class="result-item"><strong>グループ1:</strong> 平均 = ${results.group1.mean.toFixed(3)}, 標準偏差 = ${results.group1.sd.toFixed(3)}, n = ${results.group1.n}</div>
+                <div class="result-item"><strong>グループ2:</strong> 平均 = ${results.group2.mean.toFixed(3)}, 標準偏差 = ${results.group2.sd.toFixed(3)}, n = ${results.group2.n}</div>
+                <div class="result-item"><strong>平均の差:</strong> ${results.meanDifference.toFixed(3)}</div>
+                
+                <h3>検定結果</h3>
+                <div class="result-item"><strong>検定の種類:</strong> ${testTypeText}</div>
+                <div class="result-item"><strong>t統計量:</strong> ${results.tStat.toFixed(4)}</div>
+                <div class="result-item"><strong>自由度:</strong> ${results.df.toFixed(1)}</div>
+                <div class="result-item"><strong>p値:</strong> ${results.pValue.toFixed(6)}</div>
+                <div class="result-item"><strong>有意水準:</strong> ${results.significanceLevel}</div>
+                
+                <h3>判定</h3>
+                <div class="result-item">
+                    <strong>結論:</strong> 
+                    ${results.isSignificant ? 
+                        `p値 (${results.pValue.toFixed(6)}) < 有意水準 (${results.significanceLevel}) のため、<strong>統計的に有意な差があります</strong>` :
+                        `p値 (${results.pValue.toFixed(6)}) ≥ 有意水準 (${results.significanceLevel}) のため、<strong>統計的に有意な差は認められません</strong>`
+                    }
+                </div>
+            `;
+            
+            resultSection.style.display = 'block';
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function displayError(message) {
+            const resultSection = document.getElementById('results');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultContent.className = 'result-box error';
+            resultContent.innerHTML = `
+                <h3>エラー</h3>
+                <div class="result-item">${message}</div>
+                <div class="result-item">データの形式を確認して、もう一度お試しください。</div>
+            `;
+            
+            resultSection.style.display = 'block';
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // サンプルデータの設定（開発用）
+        function loadSampleData() {
+            document.getElementById('group1Data').value = "12.3\n14.5\n13.1\n15.2\n11.8\n13.7\n14.1";
+            document.getElementById('group2Data').value = "10.1\n11.8\n12.3\n11.5\n9.8\n10.9\n11.2";
+        }
+
+        // ページ読み込み時にサンプルデータボタンを追加（開発用）
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('tTestForm');
+            const sampleButton = document.createElement('button');
+            sampleButton.type = 'button';
+            sampleButton.textContent = 'サンプルデータを読み込み';
+            sampleButton.className = 'btn';
+            sampleButton.style.marginRight = '10px';
+            sampleButton.style.background = '#6c757d';
+            sampleButton.onclick = loadSampleData;
+            
+            form.appendChild(sampleButton);
+        });
+    </script>
+</body>
+</html>

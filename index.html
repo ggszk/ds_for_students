@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高校生のためのデータサイエンス - 統計検定ツール</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 高校生のためのデータサイエンス</h1>
+            <p>CODAPと連携して使用する統計検定ツール</p>
+        </header>
+
+        <main>
+            <section class="intro">
+                <h2>使い方</h2>
+                <ol>
+                    <li>CODAPでデータを準備します</li>
+                    <li>必要なデータをコピーします</li>
+                    <li>下記の検定ツールを選択し、データを貼り付けます</li>
+                    <li>結果を確認し、CODAPでの分析と比較します</li>
+                </ol>
+            </section>
+
+            <section class="tests">
+                <h2>利用可能な統計検定</h2>
+                <div class="test-grid">
+                    <div class="test-card">
+                        <h3>平均の差の検定</h3>
+                        <p>2つのグループの平均値に有意な差があるかを検定します（正規分布を仮定）</p>
+                        <a href="t-test.html" class="btn">検定を実行 →</a>
+                    </div>
+                    
+                    <div class="test-card coming-soon">
+                        <h3>相関係数の検定</h3>
+                        <p>2つの変数間の相関関係の有意性を検定します</p>
+                        <span class="btn disabled">準備中</span>
+                    </div>
+                    
+                    <div class="test-card coming-soon">
+                        <h3>適合度検定</h3>
+                        <p>観測されたデータが期待される分布に適合するかを検定します</p>
+                        <span class="btn disabled">準備中</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="about">
+                <h2>このサイトについて</h2>
+                <p>このサイトは高校生がCODAP（Common Online Data Analysis Platform）と併用して統計的検定を学習するためのツールです。Simple-Statistics.jsライブラリを使用して、ブラウザ上で統計計算を実行します。</p>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 高校生のためのデータサイエンス</p>
+        </footer>
+    </div>
+</body>
+</html>
