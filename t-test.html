@@ -92,7 +92,7 @@
         </main>
 
         <footer>
-            <p>&copy; 2024 高校生のためのデータサイエンス</p>
+            <p>&copy; 2025 高校生のためのデータサイエンス</p>
         </footer>
     </div>
 
@@ -248,19 +248,41 @@
             resultSection.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // t分布の確率密度関数（近似）
+        // t分布の確率密度関数（改良版・大きな自由度に対応）
         function tDistributionPDF(x, df) {
-            const gamma1 = Math.exp(logGamma((df + 1) / 2));
-            const gamma2 = Math.exp(logGamma(df / 2));
-            const coefficient = gamma1 / (Math.sqrt(df * Math.PI) * gamma2);
-            return coefficient * Math.pow(1 + (x * x) / df, -(df + 1) / 2);
+            // 自由度が大きい場合は標準正規分布で近似
+            if (df > 100) {
+                return (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
+            }
+            
+            try {
+                const logGamma1 = logGamma((df + 1) / 2);
+                const logGamma2 = logGamma(df / 2);
+                const logCoefficient = logGamma1 - 0.5 * Math.log(df * Math.PI) - logGamma2;
+                const logDensity = logCoefficient - ((df + 1) / 2) * Math.log(1 + (x * x) / df);
+                
+                const result = Math.exp(logDensity);
+                return isNaN(result) || !isFinite(result) ? 0 : result;
+            } catch (error) {
+                // フォールバック：標準正規分布
+                return (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
+            }
         }
 
-        // ガンマ関数の対数（近似）
+        // ガンマ関数の対数（改良版・数値安定性向上）
         function logGamma(z) {
-            if (z < 0.5) {
-                return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1 - z);
+            if (z <= 0) return Infinity;
+            
+            // 大きな値に対してはスターリング近似を使用
+            if (z > 100) {
+                return (z - 0.5) * Math.log(z) - z + 0.5 * Math.log(2 * Math.PI);
             }
+            
+            if (z < 0.5) {
+                const result = Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1 - z);
+                return isFinite(result) ? result : 0;
+            }
+            
             z -= 1;
             let x = 0.99999999999980993;
             const coefficients = [
@@ -268,34 +290,51 @@
                 -176.61502916214059, 12.507343278686905, -0.13857109526572012,
                 9.9843695780195716e-6, 1.5056327351493116e-7
             ];
-            for (let i = 0; i < coefficients.length; i++) {
-                x += coefficients[i] / (z + i + 1);
+            
+            try {
+                for (let i = 0; i < coefficients.length; i++) {
+                    x += coefficients[i] / (z + i + 1);
+                }
+                const t = z + coefficients.length - 0.5;
+                const result = 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+                return isFinite(result) ? result : 0;
+            } catch (error) {
+                return 0;
             }
-            const t = z + coefficients.length - 0.5;
-            return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
         }
 
-        // t分布のグラフを描画（シンプル版）
+        // t分布のグラフを描画（改良版・エラーハンドリング強化）
         function drawTDistributionChart(tStat, df, significanceLevel, testType, pValue) {
-            const ctx = document.getElementById('tDistributionChart').getContext('2d');
-            
-            // 既存のグラフを破棄
-            if (tDistChart) {
-                tDistChart.destroy();
-            }
+            try {
+                const ctx = document.getElementById('tDistributionChart').getContext('2d');
+                
+                // 既存のグラフを破棄
+                if (tDistChart) {
+                    tDistChart.destroy();
+                }
 
-            // データ点の生成
-            const tDistPoints = [];
-            const xMin = -4;
-            const xMax = 4;
-            const step = 0.05;
-            
-            for (let x = xMin; x <= xMax; x += step) {
-                tDistPoints.push({
-                    x: x,
-                    y: tDistributionPDF(x, df)
-                });
-            }
+                // データ点の生成
+                const tDistPoints = [];
+                const xMin = -4;
+                const xMax = 4;
+                const step = 0.05;
+                
+                for (let x = xMin; x <= xMax; x += step) {
+                    const y = tDistributionPDF(x, df);
+                    if (isFinite(y) && y >= 0) {
+                        tDistPoints.push({
+                            x: x,
+                            y: y
+                        });
+                    }
+                }
+                
+                // データ点が不十分な場合のエラーハンドリング
+                if (tDistPoints.length < 10) {
+                    console.error('グラフデータの生成に失敗しました');
+                    updateChartExplanation(tStat, df, testType, pValue, significanceLevel, []);
+                    return;
+                }
 
             // 検定統計量の位置にマーカーを追加
             const testStatPoint = {
@@ -342,8 +381,8 @@
                     data: [testStatPoint],
                     borderColor: 'red',
                     backgroundColor: 'red',
-                    pointRadius: 8,
-                    pointStyle: 'line',
+                    pointRadius: 4,
+                    pointStyle: 'circle',
                     showLine: false,
                     order: 1
                 }
@@ -430,8 +469,14 @@
                 }
             });
 
-            // グラフの説明を更新
-            updateChartExplanation(tStat, df, testType, pValue, significanceLevel, criticalValues);
+                // グラフの説明を更新
+                updateChartExplanation(tStat, df, testType, pValue, significanceLevel, criticalValues);
+                
+            } catch (error) {
+                console.error('グラフの描画中にエラーが発生しました:', error);
+                // エラー時でも説明は表示
+                updateChartExplanation(tStat, df, testType, pValue, significanceLevel, []);
+            }
         }
 
         // グラフの説明を更新
@@ -469,8 +514,8 @@
 
         // サンプルデータの設定（開発用）
         function loadSampleData() {
-            document.getElementById('group1Data').value = "12.3\n14.5\n13.1\n15.2\n11.8\n13.7\n14.1";
-            document.getElementById('group2Data').value = "10.1\n11.8\n12.3\n11.5\n9.8\n10.9\n11.2";
+            document.getElementById('group1Data').value = "85\n87\n92\n78\n90\n88\n85\n89";
+            document.getElementById('group2Data').value = "82\n84\n86\n80\n83\n85\n81\n84";
         }
 
         // ページ読み込み時にサンプルデータボタンを追加（開発用）
