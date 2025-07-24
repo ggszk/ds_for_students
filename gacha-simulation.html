@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ガチャシミュレーション - 高校生のためのデータサイエンス</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .gacha-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .card-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .card {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            background: linear-gradient(145deg, #f0f0f0, #ffffff);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .card.star-1 { border-color: #8B4513; background: linear-gradient(145deg, #F5DEB3, #FFFACD); }
+        .card.star-2 { border-color: #50C878; background: linear-gradient(145deg, #90EE90, #F0FFF0); }
+        .card.star-3 { border-color: #4169E1; background: linear-gradient(145deg, #87CEEB, #F0F8FF); }
+        .card.star-4 { border-color: #9932CC; background: linear-gradient(145deg, #DDA0DD, #F8F0FF); }
+        .card.star-5 { border-color: #FFD700; background: linear-gradient(145deg, #FFE55C, #FFFDF0); }
+        
+        .card-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        .card-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .card-rarity {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .gacha-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .draw-count-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100px;
+        }
+        
+        .gacha-button {
+            padding: 12px 24px;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .gacha-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .results-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #ddd;
+        }
+        
+        .result-count {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .result-percentage {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .export-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            border: 1px solid #2196F3;
+        }
+        
+        .export-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        .rates-display {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .rates-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #856404;
+        }
+        
+        .rate-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← トップページに戻る</a>
+        
+        <header>
+            <h1>🎲 ガチャシミュレーション</h1>
+            <p>カードガチャをシミュレーションして、比率検定の練習データを作成しましょう</p>
+        </header>
+
+        <main class="gacha-container">
+            <section class="instructions">
+                <h2>使用方法</h2>
+                <ol>
+                    <li>引く回数を入力します</li>
+                    <li>「ガチャを引く」ボタンをクリックします</li>
+                    <li>結果を確認し、特定のレアリティに注目します</li>
+                    <li>結果を「比率検定」ページにコピーして検定を行います</li>
+                </ol>
+            </section>
+
+            <section class="rates-display">
+                <div class="rates-title">📊 公表されている排出率</div>
+                <div class="rate-item"><span>⭐ (★1): 普通のカード</span><span>50.0%</span></div>
+                <div class="rate-item"><span>⭐⭐ (★2): 良いカード</span><span>25.0%</span></div>
+                <div class="rate-item"><span>⭐⭐⭐ (★3): 珍しいカード</span><span>15.0%</span></div>
+                <div class="rate-item"><span>⭐⭐⭐⭐ (★4): 稀少なカード</span><span>7.0%</span></div>
+                <div class="rate-item"><span>⭐⭐⭐⭐⭐ (★5): 超レアカード</span><span>3.0%</span></div>
+            </section>
+
+            <section class="card-display">
+                <div class="card star-1">
+                    <div class="card-icon">🛡️</div>
+                    <div class="card-name">戦士</div>
+                    <div class="card-rarity">★1 (50%)</div>
+                </div>
+                <div class="card star-2">
+                    <div class="card-icon">🏹</div>
+                    <div class="card-name">弓使い</div>
+                    <div class="card-rarity">★2 (25%)</div>
+                </div>
+                <div class="card star-3">
+                    <div class="card-icon">🔮</div>
+                    <div class="card-name">魔法使い</div>
+                    <div class="card-rarity">★3 (15%)</div>
+                </div>
+                <div class="card star-4">
+                    <div class="card-icon">⚔️</div>
+                    <div class="card-name">騎士</div>
+                    <div class="card-rarity">★4 (7%)</div>
+                </div>
+                <div class="card star-5">
+                    <div class="card-icon">👑</div>
+                    <div class="card-name">王様</div>
+                    <div class="card-rarity">★5 (3%)</div>
+                </div>
+            </section>
+
+            <section class="gacha-controls">
+                <label for="drawCount">引く回数:</label>
+                <input type="number" id="drawCount" class="draw-count-input" value="100" min="1" max="10000">
+                <button id="gachaButton" class="gacha-button">🎲 ガチャを引く</button>
+                <button id="resetButton" class="gacha-button" style="background: linear-gradient(145deg, #f44336, #d32f2f);">🔄 リセット</button>
+            </section>
+
+            <section id="resultsSection" class="results-section" style="display: none;">
+                <h2>📈 ガチャ結果</h2>
+                <div id="totalDraws" class="result-item" style="margin-bottom: 20px;">
+                    <div>総引き回数</div>
+                    <div class="result-count">0</div>
+                </div>
+                
+                <div class="results-grid">
+                    <div id="result1" class="result-item">
+                        <div>⭐ (★1)</div>
+                        <div class="result-count">0</div>
+                        <div class="result-percentage">0.0%</div>
+                    </div>
+                    <div id="result2" class="result-item">
+                        <div>⭐⭐ (★2)</div>
+                        <div class="result-count">0</div>
+                        <div class="result-percentage">0.0%</div>
+                    </div>
+                    <div id="result3" class="result-item">
+                        <div>⭐⭐⭐ (★3)</div>
+                        <div class="result-count">0</div>
+                        <div class="result-percentage">0.0%</div>
+                    </div>
+                    <div id="result4" class="result-item">
+                        <div>⭐⭐⭐⭐ (★4)</div>
+                        <div class="result-count">0</div>
+                        <div class="result-percentage">0.0%</div>
+                    </div>
+                    <div id="result5" class="result-item">
+                        <div>⭐⭐⭐⭐⭐ (★5)</div>
+                        <div class="result-count">0</div>
+                        <div class="result-percentage">0.0%</div>
+                    </div>
+                </div>
+
+                <div class="export-section">
+                    <h3>📋 比率検定用データ</h3>
+                    <p>下記のデータを「比率検定」ページにコピーして使用してください：</p>
+                    <div id="exportData" style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; font-family: monospace; border: 1px solid #ddd;"></div>
+                    <button id="copyButton" class="export-button">📋 データをコピー</button>
+                    <a href="proportion-test.html" class="export-button" style="text-decoration: none; display: inline-block;">➡️ 比率検定へ</a>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 高校生のためのデータサイエンス</p>
+        </footer>
+    </div>
+
+    <script>
+        // ガチャの排出率設定（実際の排出率 - 公表値とは異なる）
+        const rates = {
+            1: 0.51,  // ★1: 51.0% (公表: 50.0%)
+            2: 0.25,  // ★2: 25.0% (公表: 25.0%)
+            3: 0.15,  // ★3: 15.0% (公表: 15.0%)
+            4: 0.07,  // ★4: 7.0%  (公表: 7.0%)
+            5: 0.02   // ★5: 2.0%  (公表: 3.0%) ← 意図的に1%低く設定
+        };
+
+        // 累積排出率の計算
+        const cumulativeRates = [];
+        let cumulative = 0;
+        for (let i = 1; i <= 5; i++) {
+            cumulative += rates[i];
+            cumulativeRates[i] = cumulative;
+        }
+
+        // ガチャ結果を保存する変数
+        let gachaResults = {
+            total: 0,
+            counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        };
+
+        // ガチャを1回引く関数
+        function drawOnce() {
+            const random = Math.random();
+            for (let rarity = 1; rarity <= 5; rarity++) {
+                if (random <= cumulativeRates[rarity]) {
+                    return rarity;
+                }
+            }
+            return 1; // フォールバック
+        }
+
+        // ガチャを複数回引く関数
+        function drawMultiple(count) {
+            const results = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            
+            for (let i = 0; i < count; i++) {
+                const rarity = drawOnce();
+                results[rarity]++;
+            }
+            
+            return results;
+        }
+
+        // 結果を表示する関数
+        function displayResults() {
+            const resultsSection = document.getElementById('resultsSection');
+            const totalDrawsElement = document.getElementById('totalDraws').querySelector('.result-count');
+            
+            totalDrawsElement.textContent = gachaResults.total;
+            
+            for (let rarity = 1; rarity <= 5; rarity++) {
+                const resultElement = document.getElementById(`result${rarity}`);
+                const countElement = resultElement.querySelector('.result-count');
+                const percentageElement = resultElement.querySelector('.result-percentage');
+                
+                const count = gachaResults.counts[rarity];
+                const percentage = gachaResults.total > 0 ? (count / gachaResults.total * 100) : 0;
+                
+                countElement.textContent = count;
+                percentageElement.textContent = `${percentage.toFixed(1)}%`;
+                
+                // 期待値と大きく異なる場合の色分け
+                const expectedPercentage = rates[rarity] * 100;
+                const deviation = Math.abs(percentage - expectedPercentage);
+                
+                if (deviation > expectedPercentage * 0.5 && gachaResults.total >= 100) {
+                    resultElement.style.backgroundColor = '#ffebee';
+                    resultElement.style.borderColor = '#f44336';
+                } else {
+                    resultElement.style.backgroundColor = 'white';
+                    resultElement.style.borderColor = '#ddd';
+                }
+            }
+            
+            // エクスポートデータの更新
+            updateExportData();
+            
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // エクスポートデータを更新する関数
+        function updateExportData() {
+            const exportDataElement = document.getElementById('exportData');
+            
+            const data = [];
+            data.push(`総試行回数: ${gachaResults.total}`);
+            data.push('');
+            data.push('各レアリティの出現回数:');
+            for (let rarity = 1; rarity <= 5; rarity++) {
+                const count = gachaResults.counts[rarity];
+                const percentage = gachaResults.total > 0 ? (count / gachaResults.total * 100) : 0;
+                data.push(`★${rarity}: ${count}回 (${percentage.toFixed(1)}%)`);
+            }
+            data.push('');
+            data.push('比率検定用データ例 (★5の場合):');
+            data.push(`観測された成功回数: ${gachaResults.counts[5]}`);
+            data.push(`総試行回数: ${gachaResults.total}`);
+            data.push(`帰無仮説の成功率: 0.03 (3.0%)`);
+            
+            exportDataElement.textContent = data.join('\n');
+        }
+
+        // ガチャボタンのイベントリスナー
+        document.getElementById('gachaButton').addEventListener('click', function() {
+            const drawCount = parseInt(document.getElementById('drawCount').value);
+            
+            if (isNaN(drawCount) || drawCount < 1 || drawCount > 10000) {
+                alert('引く回数は1以上10000以下で入力してください。');
+                return;
+            }
+            
+            // ガチャを実行
+            const newResults = drawMultiple(drawCount);
+            
+            // 累積結果を更新
+            gachaResults.total += drawCount;
+            for (let rarity = 1; rarity <= 5; rarity++) {
+                gachaResults.counts[rarity] += newResults[rarity];
+            }
+            
+            // 結果を表示
+            displayResults();
+            
+            // ボタンを一時的に無効化
+            this.disabled = true;
+            this.textContent = '🎲 引いています...';
+            
+            setTimeout(() => {
+                this.disabled = false;
+                this.textContent = '🎲 ガチャを引く';
+            }, 1000);
+        });
+
+        // リセットボタンのイベントリスナー
+        document.getElementById('resetButton').addEventListener('click', function() {
+            if (confirm('ガチャ結果をリセットしますか？')) {
+                gachaResults = {
+                    total: 0,
+                    counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+                };
+                
+                document.getElementById('resultsSection').style.display = 'none';
+            }
+        });
+
+        // コピーボタンのイベントリスナー
+        document.getElementById('copyButton').addEventListener('click', function() {
+            const exportData = document.getElementById('exportData').textContent;
+            
+            navigator.clipboard.writeText(exportData).then(function() {
+                const originalText = this.textContent;
+                this.textContent = '✅ コピーしました！';
+                this.style.background = '#4CAF50';
+                
+                setTimeout(() => {
+                    this.textContent = originalText;
+                    this.style.background = '#2196F3';
+                }, 2000);
+            }.bind(this)).catch(function(err) {
+                console.error('コピーに失敗しました: ', err);
+                alert('コピーに失敗しました。手動でデータを選択してコピーしてください。');
+            });
+        });
+
+        // Enter キーでガチャを引く
+        document.getElementById('drawCount').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('gachaButton').click();
+            }
+        });
+    </script>
+</body>
+</html>

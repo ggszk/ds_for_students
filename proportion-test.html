@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1標本比率検定 - 高校生のためのデータサイエンス</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .hypothesis-section {
+            background: #f0f8ff;
+            border: 2px solid #4169E1;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .hypothesis-title {
+            color: #4169E1;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .hypothesis-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #4169E1;
+        }
+        
+        .example-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .example-title {
+            color: #856404;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        .input-group label {
+            min-width: 150px;
+            font-weight: bold;
+        }
+        
+        .input-group input, .input-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .input-number {
+            width: 120px;
+        }
+        
+        .chart-container {
+            height: 400px;
+            margin: 20px 0;
+        }
+        
+        .interpretation-section {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .interpretation-title {
+            color: #2e7d32;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .critical-region {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .accept-region {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← トップページに戻る</a>
+        
+        <header>
+            <h1>📊 1標本比率検定</h1>
+            <p>観測された比率が期待される比率と有意に異なるかを検定します</p>
+        </header>
+
+        <main>
+            <section class="instructions">
+                <h2>この検定について</h2>
+                <p>1標本比率検定は、観測されたデータの成功率（比率）が、期待される成功率と統計的に有意な差があるかを調べる検定です。</p>
+                <p><strong>例：</strong> ガチャで★5が出る確率が公表値（3%）と同じかどうかを検定する</p>
+            </section>
+
+            <section class="hypothesis-section">
+                <div class="hypothesis-title">🎯 仮説の設定</div>
+                <div class="hypothesis-item">
+                    <strong>帰無仮説 (H₀):</strong> 観測された比率 = 期待される比率<br>
+                    <em>例: ガチャの★5出現率は公表値の3%と同じである</em>
+                </div>
+                <div class="hypothesis-item">
+                    <strong>対立仮説 (H₁):</strong> 観測された比率 ≠ 期待される比率<br>
+                    <em>例: ガチャの★5出現率は公表値の3%と異なる</em>
+                </div>
+            </section>
+
+            <section class="example-section">
+                <div class="example-title">💡 ガチャシミュレーションの例</div>
+                <p>ガチャシミュレーションで以下のような結果が得られたとします：</p>
+                <ul>
+                    <li>総引き回数: 1000回</li>
+                    <li>★5が出た回数: 25回（実際の率: 2.5%）</li>
+                    <li>公表されている★5の確率: 3.0%</li>
+                </ul>
+                <p><strong>検定の質問:</strong> この結果は公表確率と有意に異なるか？</p>
+                <a href="gacha-simulation.html" class="btn" style="margin-top: 10px;">🎲 ガチャシミュレーションを試す</a>
+            </section>
+
+            <section class="test-form">
+                <h2>データ入力</h2>
+                <form id="proportionTestForm">
+                    <div class="input-group">
+                        <label for="successCount">成功回数 (観測値):</label>
+                        <input type="number" id="successCount" class="input-number" min="0" placeholder="25" required>
+                        <small>例: ★5が出た回数</small>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="trialCount">試行回数 (全体):</label>
+                        <input type="number" id="trialCount" class="input-number" min="1" placeholder="1000" required>
+                        <small>例: ガチャを引いた総回数</small>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="expectedRate">期待比率 (帰無仮説):</label>
+                        <input type="number" id="expectedRate" class="input-number" step="0.001" min="0" max="1" placeholder="0.03" required>
+                        <small>例: 0.03 (3%)</small>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="significanceLevel">有意水準:</label>
+                        <select id="significanceLevel">
+                            <option value="0.01">0.01 (1%)</option>
+                            <option value="0.05" selected>0.05 (5%)</option>
+                            <option value="0.10">0.10 (10%)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="testType">検定の種類:</label>
+                        <select id="testType">
+                            <option value="two-tailed" selected>両側検定（期待値と異なる）</option>
+                            <option value="greater">片側検定（期待値より大きい）</option>
+                            <option value="less">片側検定（期待値より小さい）</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn">検定を実行</button>
+                </form>
+            </section>
+
+            <section id="results" class="results" style="display: none;">
+                <h2>検定結果</h2>
+                <div class="results-container">
+                    <div class="numeric-results">
+                        <div id="resultContent" class="result-box"></div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>標準正規分布と検定統計量</h3>
+                        <canvas id="normalDistributionChart"></canvas>
+                        <div id="chartExplanation" class="chart-explanation"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="interpretation-section">
+                <div class="interpretation-title">📖 結果の解釈方法</div>
+                <ul>
+                    <li><strong>z統計量：</strong> 観測された比率と期待比率の差を標準誤差で標準化した値</li>
+                    <li><strong>p値：</strong> 帰無仮説が正しいと仮定した時に、観測された結果以上の極端な結果が得られる確率</li>
+                    <li><strong>判定：</strong> p値が有意水準より小さい場合、統計的に有意な差があると判断</li>
+                    <li><strong>実用的意味：</strong> 統計的に有意でも、実用的に意味のある差かは別途検討が必要</li>
+                </ul>
+            </section>
+
+            <section class="explanation">
+                <h2>検定の仕組み</h2>
+                <h3>🧮 計算式</h3>
+                <ul>
+                    <li><strong>観測比率：</strong> p̂ = 成功回数 ÷ 試行回数</li>
+                    <li><strong>標準誤差：</strong> SE = √(p₀ × (1-p₀) ÷ n)</li>
+                    <li><strong>z統計量：</strong> z = (p̂ - p₀) ÷ SE</li>
+                    <li>ここで、p₀ = 期待比率、n = 試行回数</li>
+                </ul>
+                
+                <h3>📋 適用条件</h3>
+                <ul>
+                    <li>試行が独立している</li>
+                    <li>成功確率が一定である</li>
+                    <li>標本サイズが十分大きい（np₀ ≥ 5 かつ n(1-p₀) ≥ 5）</li>
+                </ul>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 高校生のためのデータサイエンス</p>
+        </footer>
+    </div>
+
+    <script>
+        let normalChart = null;
+
+        document.getElementById('proportionTestForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            performProportionTest();
+        });
+
+        function performProportionTest() {
+            try {
+                // データの取得
+                const successCount = parseInt(document.getElementById('successCount').value);
+                const trialCount = parseInt(document.getElementById('trialCount').value);
+                const expectedRate = parseFloat(document.getElementById('expectedRate').value);
+                const significanceLevel = parseFloat(document.getElementById('significanceLevel').value);
+                const testType = document.getElementById('testType').value;
+
+                // データの検証
+                if (successCount < 0 || successCount > trialCount) {
+                    throw new Error('成功回数は0以上、試行回数以下である必要があります');
+                }
+                
+                if (expectedRate <= 0 || expectedRate >= 1) {
+                    throw new Error('期待比率は0より大きく1より小さい値である必要があります');
+                }
+
+                // 適用条件のチェック
+                const np0 = trialCount * expectedRate;
+                const n1p0 = trialCount * (1 - expectedRate);
+                
+                if (np0 < 5 || n1p0 < 5) {
+                    console.warn('警告: 標本サイズが小さいため、正規近似の精度が低い可能性があります');
+                }
+
+                // 統計量の計算
+                const observedRate = successCount / trialCount;
+                const standardError = Math.sqrt(expectedRate * (1 - expectedRate) / trialCount);
+                const zStat = (observedRate - expectedRate) / standardError;
+
+                // p値の計算
+                let pValue;
+                if (testType === 'two-tailed') {
+                    pValue = 2 * (1 - ss.cumulativeStdNormalProbability(Math.abs(zStat)));
+                } else if (testType === 'greater') {
+                    pValue = 1 - ss.cumulativeStdNormalProbability(zStat);
+                } else { // less
+                    pValue = ss.cumulativeStdNormalProbability(zStat);
+                }
+
+                // 結果の判定
+                const isSignificant = pValue < significanceLevel;
+
+                // 臨界値の計算
+                let criticalValues = [];
+                if (testType === 'two-tailed') {
+                    const criticalZ = ss.probit(1 - significanceLevel / 2);
+                    criticalValues = [-criticalZ, criticalZ];
+                } else if (testType === 'greater') {
+                    criticalValues = [ss.probit(1 - significanceLevel)];
+                } else {
+                    criticalValues = [ss.probit(significanceLevel)];
+                }
+
+                const results = {
+                    successCount: successCount,
+                    trialCount: trialCount,
+                    observedRate: observedRate,
+                    expectedRate: expectedRate,
+                    standardError: standardError,
+                    zStat: zStat,
+                    pValue: pValue,
+                    significanceLevel: significanceLevel,
+                    testType: testType,
+                    isSignificant: isSignificant,
+                    criticalValues: criticalValues,
+                    rateDifference: observedRate - expectedRate
+                };
+
+                // 結果の表示
+                displayResults(results);
+
+                // グラフの描画
+                drawNormalDistributionChart(results);
+
+            } catch (error) {
+                displayError(error.message);
+            }
+        }
+
+        function displayResults(results) {
+            const resultSection = document.getElementById('results');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultContent.className = results.isSignificant ? 'result-box success' : 'result-box';
+            
+            let testTypeText;
+            switch(results.testType) {
+                case 'two-tailed':
+                    testTypeText = '両側検定';
+                    break;
+                case 'greater':
+                    testTypeText = '片側検定（観測値 > 期待値）';
+                    break;
+                case 'less':
+                    testTypeText = '片側検定（観測値 < 期待値）';
+                    break;
+            }
+
+            // 信頼区間の計算（両側検定の場合）
+            let confidenceInterval = '';
+            if (results.testType === 'two-tailed') {
+                const confidence = 1 - results.significanceLevel;
+                const marginOfError = Math.abs(results.criticalValues[1]) * results.standardError;
+                const lowerBound = Math.max(0, results.observedRate - marginOfError);
+                const upperBound = Math.min(1, results.observedRate + marginOfError);
+                confidenceInterval = `<div class="result-item"><strong>${(confidence*100).toFixed(0)}%信頼区間:</strong> [${lowerBound.toFixed(4)}, ${upperBound.toFixed(4)}] = [${(lowerBound*100).toFixed(2)}%, ${(upperBound*100).toFixed(2)}%]</div>`;
+            }
+
+            resultContent.innerHTML = `
+                <h3>基本統計量</h3>
+                <div class="result-item"><strong>成功回数:</strong> ${results.successCount} 回</div>
+                <div class="result-item"><strong>試行回数:</strong> ${results.trialCount} 回</div>
+                <div class="result-item"><strong>観測比率:</strong> ${results.observedRate.toFixed(4)} (${(results.observedRate*100).toFixed(2)}%)</div>
+                <div class="result-item"><strong>期待比率:</strong> ${results.expectedRate.toFixed(4)} (${(results.expectedRate*100).toFixed(2)}%)</div>
+                <div class="result-item"><strong>比率の差:</strong> ${results.rateDifference.toFixed(4)} (${(results.rateDifference*100).toFixed(2)}%ポイント)</div>
+                
+                <h3>検定結果</h3>
+                <div class="result-item"><strong>検定の種類:</strong> ${testTypeText}</div>
+                <div class="result-item"><strong>z統計量:</strong> ${results.zStat.toFixed(4)}</div>
+                <div class="result-item"><strong>標準誤差:</strong> ${results.standardError.toFixed(6)}</div>
+                <div class="result-item"><strong>p値:</strong> ${results.pValue.toFixed(6)}</div>
+                <div class="result-item"><strong>有意水準:</strong> ${results.significanceLevel}</div>
+                ${confidenceInterval}
+                
+                <h3>判定</h3>
+                <div class="result-item">
+                    <strong>結論:</strong> 
+                    ${results.isSignificant ? 
+                        `p値 (${results.pValue.toFixed(6)}) < 有意水準 (${results.significanceLevel}) のため、<strong>統計的に有意な差があります</strong><br>
+                        <em>帰無仮説を棄却し、観測された比率と期待比率には有意な差があると結論します。</em>` :
+                        `p値 (${results.pValue.toFixed(6)}) ≥ 有意水準 (${results.significanceLevel}) のため、<strong>統計的に有意な差は認められません</strong><br>
+                        <em>帰無仮説を棄却できず、観測された比率と期待比率に有意な差があるとは言えません。</em>`
+                    }
+                </div>
+            `;
+            
+            resultSection.style.display = 'block';
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function displayError(message) {
+            const resultSection = document.getElementById('results');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultContent.className = 'result-box error';
+            resultContent.innerHTML = `
+                <h3>エラー</h3>
+                <div class="result-item">${message}</div>
+                <div class="result-item">入力データを確認して、もう一度お試しください。</div>
+            `;
+            
+            resultSection.style.display = 'block';
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function drawNormalDistributionChart(results) {
+            try {
+                const ctx = document.getElementById('normalDistributionChart').getContext('2d');
+                
+                // 既存のグラフを破棄
+                if (normalChart) {
+                    normalChart.destroy();
+                }
+
+                // データ点の生成
+                const normalPoints = [];
+                const xMin = -4;
+                const xMax = 4;
+                const step = 0.05;
+                
+                for (let x = xMin; x <= xMax; x += step) {
+                    const y = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
+                    normalPoints.push({ x: x, y: y });
+                }
+
+                // 検定統計量の位置
+                const testStatPoint = {
+                    x: results.zStat,
+                    y: (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * results.zStat * results.zStat)
+                };
+
+                // 臨界値の点
+                const criticalPoints = results.criticalValues.map(val => ({
+                    x: val,
+                    y: (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * val * val)
+                }));
+
+                const datasets = [
+                    {
+                        label: '標準正規分布 N(0,1)',
+                        data: normalPoints,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        order: 3
+                    },
+                    {
+                        label: `検定統計量 (z = ${results.zStat.toFixed(3)})`,
+                        data: [testStatPoint],
+                        borderColor: 'red',
+                        backgroundColor: 'red',
+                        pointRadius: 4,
+                        pointStyle: 'circle',
+                        showLine: false,
+                        order: 1
+                    }
+                ];
+
+                // 臨界値の点を追加
+                if (criticalPoints.length > 0) {
+                    datasets.push({
+                        label: '臨界値',
+                        data: criticalPoints,
+                        borderColor: 'orange',
+                        backgroundColor: 'orange',
+                        pointRadius: 6,
+                        pointStyle: 'triangle',
+                        showLine: false,
+                        order: 2
+                    });
+                }
+
+                normalChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { datasets: datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                title: {
+                                    display: true,
+                                    text: 'z値',
+                                    font: { size: 14 }
+                                },
+                                min: xMin,
+                                max: xMax,
+                                grid: { display: true }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '確率密度',
+                                    font: { size: 14 }
+                                },
+                                min: 0,
+                                grid: { display: true }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(context) {
+                                        return `z値: ${context[0].parsed.x.toFixed(3)}`;
+                                    },
+                                    label: function(context) {
+                                        if (context.datasetIndex === 0) {
+                                            return `確率密度: ${context.parsed.y.toFixed(4)}`;
+                                        } else if (context.datasetIndex === 1) {
+                                            return `検定統計量: ${context.parsed.x.toFixed(3)}`;
+                                        } else {
+                                            return `臨界値: ${context.parsed.x.toFixed(3)}`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // グラフの説明を更新
+                updateChartExplanation(results);
+                
+            } catch (error) {
+                console.error('グラフの描画中にエラーが発生しました:', error);
+                updateChartExplanation(results);
+            }
+        }
+
+        function updateChartExplanation(results) {
+            const explanation = document.getElementById('chartExplanation');
+            
+            let testTypeText;
+            switch(results.testType) {
+                case 'two-tailed':
+                    testTypeText = '両側検定：両端の棄却域';
+                    break;
+                case 'greater':
+                    testTypeText = '片側検定：右側の棄却域';
+                    break;
+                case 'less':
+                    testTypeText = '片側検定：左側の棄却域';
+                    break;
+            }
+
+            const criticalText = results.criticalValues.length > 1 ? 
+                `臨界値: ±${Math.abs(results.criticalValues[0]).toFixed(3)}` :
+                `臨界値: ${results.criticalValues[0].toFixed(3)}`;
+
+            const inCriticalRegion = results.criticalValues.some(cv => 
+                results.testType === 'two-tailed' ? 
+                    Math.abs(results.zStat) >= Math.abs(cv) :
+                results.testType === 'greater' ?
+                    results.zStat >= cv :
+                    results.zStat <= cv
+            );
+
+            explanation.innerHTML = `
+                <ul>
+                    <li><strong>青い曲線：</strong> 標準正規分布 N(0,1)</li>
+                    <li><strong>赤い点：</strong> 検定統計量 z = ${results.zStat.toFixed(3)}</li>
+                    <li><strong>オレンジの三角：</strong> ${criticalText}（有意水準 ${results.significanceLevel}）</li>
+                    <li><strong>検定の種類：</strong> ${testTypeText}</li>
+                    <li><strong>p値 = ${results.pValue.toFixed(6)}：</strong> 統計量より極端な値が出る確率</li>
+                    <li><strong>判定：</strong> ${inCriticalRegion ? '棄却域内（有意差あり）' : '受容域内（有意差なし）'}</li>
+                </ul>
+            `;
+        }
+
+        // サンプルデータの設定
+        function loadSampleData() {
+            document.getElementById('successCount').value = "25";
+            document.getElementById('trialCount').value = "1000";
+            document.getElementById('expectedRate').value = "0.03";
+        }
+
+        // ページ読み込み時にサンプルデータボタンを追加
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('proportionTestForm');
+            const sampleButton = document.createElement('button');
+            sampleButton.type = 'button';
+            sampleButton.textContent = 'サンプルデータを読み込み';
+            sampleButton.className = 'btn';
+            sampleButton.style.marginRight = '10px';
+            sampleButton.style.background = '#6c757d';
+            sampleButton.onclick = loadSampleData;
+            
+            form.appendChild(sampleButton);
+        });
+    </script>
+</body>
+</html>
